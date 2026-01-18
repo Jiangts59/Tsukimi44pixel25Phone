@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="pink">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>CHARA_CARD // 角色终端</title>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --font-pixel: 'DotGothic16', sans-serif;
+        --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* === 🌸 主题：樱花马卡龙 (Pink) === */
+      [data-theme='pink'] {
+        --bg-color: #fff5f8;
+        --bg-pattern: radial-gradient(#ffd1dc 15%, transparent 16%) 0 0;
+        --panel-bg: #fff;
+        --text-main: #6d597a;
+        --text-sub: #b5838d;
+        --border-color: #ffc8dd;
+        --shadow-color: #ffafcc;
+        --primary: #ffc8dd;
+        --btn-save-bg: #cdb4db;
+        --btn-new-bg: #bde0fe;
+        --btn-del-bg: #ffafcc;
+        --btn-import-bg: #ffdfd3;
+        --input-bg: #fffbfb;
+        --modal-overlay: rgba(255, 245, 248, 0.9);
+      }
+
+      /* === ☁️ 主题：薄荷海盐 (Blue) === */
+      [data-theme='blue'] {
+        --bg-color: #f0f8ff;
+        --bg-pattern: radial-gradient(#a2d2ff 15%, transparent 16%) 0 0;
+        --panel-bg: #fdfffd;
+        --text-main: #546a7b;
+        --text-sub: #98c1d9;
+        --border-color: #a2d2ff;
+        --shadow-color: #bde0fe;
+        --primary: #a2d2ff;
+        --btn-save-bg: #b7e4c7;
+        --btn-new-bg: #ffcdb2;
+        --btn-del-bg: #ffb4a2;
+        --btn-import-bg: #e2f0cb;
+        --input-bg: #f9fcff;
+        --modal-overlay: rgba(240, 248, 255, 0.9);
+      }
+
+      body {
+        font-family: var(--font-pixel);
+        background-color: var(--bg-color);
+        background-image: var(--bg-pattern);
+        background-size: 20px 20px;
+        color: var(--text-main);
+        margin: 0;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        transition: background 0.5s;
+        font-size: 14px;
+      }
+
+      /* === 通用组件 === */
+      .header-sign {
+        width: 100%;
+        text-align: center;
+        color: var(--text-sub);
+        font-size: 0.8rem;
+        letter-spacing: 2px;
+        opacity: 0.8;
+        margin: 5px 0 10px 0;
+        text-shadow: 1px 1px 0 #fff;
+      }
+      .top-bar {
+        width: 100%;
+        max-width: 900px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        background: var(--panel-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        padding: 8px 15px;
+        box-shadow: 0 4px 0 var(--shadow-color);
+        box-sizing: border-box;
+      }
+      .app-title h1 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+      .app-title span {
+        color: var(--btn-save-bg);
+      }
+      .theme-toggle-btn {
+        background: var(--btn-new-bg);
+        border: 1px solid var(--text-main);
+        border-radius: 15px;
+        padding: 4px 10px;
+        font-size: 0.8rem;
+        font-family: var(--font-pixel);
+        cursor: pointer;
+        color: var(--text-main);
+        box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1);
+      }
+      .main-container {
+        width: 100%;
+        max-width: 900px;
+        position: relative;
+      }
+
+      /* === 按钮 === */
+      .pixel-btn {
+        padding: 8px 12px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+        font-family: var(--font-pixel);
+        font-size: 0.85rem;
+        cursor: pointer;
+        color: #fff;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.1s;
+        border: 2px solid #fff;
+      }
+      .pixel-btn:active {
+        transform: translateY(3px);
+        box-shadow: none;
+      }
+      .btn-new {
+        background-color: var(--btn-new-bg);
+        color: #555;
+      }
+      .btn-save {
+        background-color: var(--btn-save-bg);
+      }
+      .btn-del {
+        background-color: var(--btn-del-bg);
+      }
+      .btn-import {
+        background-color: var(--btn-import-bg);
+        color: #555;
+      }
+      .btn-back {
+        background-color: #eee;
+        color: #666;
+        width: auto;
+        display: inline-flex;
+        border: 2px solid #fff;
+      }
+      /* 小按钮变体 */
+      .btn-mini {
+        padding: 2px 6px;
+        font-size: 0.5rem;
+        min-width: 24px;
+      }
+
+      /* === 列表视图 === */
+      #view-list {
+        display: block;
+        animation: floatIn 0.3s ease-out;
+      }
+      .char-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .char-card-item {
+        background: var(--panel-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition);
+        box-shadow: 0 4px 0 var(--shadow-color);
+        position: relative;
+        overflow: hidden;
+      }
+      .char-card-item:hover {
+        transform: translateY(-3px);
+      }
+      .char-avatar-small {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--border-color);
+        background: var(--bg-color);
+        margin-bottom: 5px;
+      }
+      .char-name {
+        font-size: 0.9rem;
+        font-weight: bold;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* === 编辑视图 === */
+      #view-edit {
+        display: none;
+        animation: floatIn 0.3s ease-out;
+      }
+      .edit-panel {
+        background: var(--panel-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 15px;
+        padding: 15px;
+        box-shadow: 0 5px 0 var(--shadow-color);
+      }
+      .edit-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        border-bottom: 2px dashed var(--border-color);
+        padding-bottom: 10px;
+      }
+
+      /* 表单元素 */
+      .pixel-form-group {
+        margin-bottom: 12px;
+      }
+      .pixel-label {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text-main);
+        font-size: 0.85rem;
+        font-weight: bold;
+      }
+      .pixel-input,
+      .pixel-textarea {
+        width: 100%;
+        padding: 8px 10px;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-main);
+        font-family: var(--font-pixel);
+        font-size: 0.9rem;
+        box-sizing: border-box;
+        box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.03);
+      }
+      .pixel-textarea {
+        min-height: 100px;
+        resize: vertical;
+        line-height: 1.4;
+      }
+      .pixel-input:focus,
+      .pixel-textarea:focus {
+        outline: none;
+        border-color: var(--text-sub);
+      }
+
+      /* 头像上传区 */
+      .avatar-upload-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        background: var(--bg-color);
+        padding: 15px;
+        border-radius: 12px;
+        border: 2px dashed var(--border-color);
+      }
+      .avatar-preview-big {
+        width: 100px;
+        height: 100px;
+        border-radius: 15px;
+        object-fit: cover;
+        border: 2px solid var(--border-color);
+        background: #fff;
+      }
+
+      /* 世界书列表 */
+      .wb-section {
+        margin-top: 20px;
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.5);
+      }
+      .wb-header {
+        font-size: 0.95rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: var(--text-sub);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .wb-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .wb-item {
+        background: var(--panel-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 8px;
+        margin-bottom: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 0.85rem;
+        position: relative;
+      }
+      .wb-row-main {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+      .wb-row-tools {
+        display: flex;
+        gap: 5px;
+        justify-content: flex-end;
+        margin-top: 5px;
+        border-top: 1px dashed var(--border-color);
+        padding-top: 5px;
+      }
+      .wb-prio-badge {
+        background: var(--btn-import-bg);
+        color: #666;
+        padding: 2px 6px;
+        border-radius: 7px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.1s;
+        border: 2px solid #fff;
+      }
+
+      /* 用户绑定模块 (新) */
+      .user-bind-section {
+        margin-top: 20px;
+        border: 2px dashed var(--text-sub);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.3);
+      }
+      .user-bind-title {
+        font-size: 0.9rem;
+        font-weight: bold;
+        color: var(--text-sub);
+        margin-bottom: 10px;
+        text-align: center;
+        border-bottom: 1px dotted var(--text-sub);
+        padding-bottom: 5px;
+      }
+
+      /* 隐藏的文件输入 */
+      #file_import,
+      #avatar_upload {
+        display: none;
+      }
+
+      @keyframes floatIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* === 弹窗样式 === */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: var(--modal-overlay);
+        backdrop-filter: blur(2px);
+        z-index: 999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s;
+      }
+      .modal-overlay.show {
+        opacity: 1;
+        visibility: visible;
+      }
+      .modal-box {
+        background: var(--panel-bg);
+        border: 3px solid var(--border-color);
+        border-radius: 15px;
+        padding: 20px;
+        width: 85%;
+        max-width: 320px;
+        box-shadow: 0 8px 0 var(--shadow-color);
+        transform: scale(0.9);
+        transition: transform 0.3s;
+        text-align: center;
+      }
+      .modal-overlay.show .modal-box {
+        transform: scale(1);
+      }
+      .modal-title {
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+        color: var(--text-main);
+        border-bottom: 2px dashed var(--border-color);
+        padding-bottom: 5px;
+      }
+      .modal-content {
+        font-size: 0.95rem;
+        color: var(--text-sub);
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      /* 弹窗内的 Textarea 修正 */
+      #prompt-textarea {
+        width: 100%;
+        padding: 8px 10px;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-main);
+        font-family: var(--font-pixel);
+        font-size: 0.9rem;
+        box-sizing: border-box;
+        min-height: 490px;
+        resize: vertical;
+        display: none; /* 默认隐藏，由JS切换 */
+        text-align: left;
+      }
+      .footer-sign {
+        width: 100%;
+        text-align: center;
+        color: var(--text-sub);
+        font-size: 0.8rem;
+        letter-spacing: 2px;
+        opacity: 0.8;
+        margin: 4px 0;
+        text-shadow: 1px 1px 0 #fff;
+      }
+      .footer-sign {
+        margin-top: 20px;
+        padding-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-sign">✦ CHARACTER_Cards by 月見tsukimi ✦</div>
+
+    <div class="top-bar">
+      <div class="app-title">
+        <h1>Roleplay Cards <span>♡</span></h1>
+      </div>
+      <button class="theme-toggle-btn" onclick="toggleTheme()">🎨 THEME</button>
+    </div>
+
+    <div class="main-container">
+      <!-- 列表视图 -->
+      <div id="view-list">
+        <div style="display: flex; gap: 10px">
+          <button class="pixel-btn btn-new" onclick="createNewChar()" style="flex: 1">➕ 新建角色</button>
+          <button class="pixel-btn btn-import" onclick="triggerImport()" style="flex: 1">📂 导入 (PNG/JSON)</button>
+        </div>
+
+        <div id="char-list-container" class="char-grid"></div>
+      </div>
+
+      <!-- 编辑视图 -->
+      <div id="view-edit">
+        <div class="edit-panel">
+          <div class="edit-header">
+            <button class="pixel-btn btn-back" onclick="handleBack()">◀ 返回</button>
+            <span style="font-weight: bold; color: var(--text-main)">📝 编辑档案</span>
+          </div>
+
+          <input type="hidden" id="edit_id" />
+
+          <!-- 头像 -->
+          <div class="avatar-upload-area" onclick="document.getElementById('avatar_upload').click()">
+            <img
+              id="edit_avatar_preview"
+              class="avatar-preview-big"
+              src=""
+              onerror="this.src='https://i.postimg.cc/J04FJMsS/1768119599448.png'"
+            />
+            <div style="font-size: 0.8rem; color: var(--text-sub)">点击更换头像</div>
+            <input type="file" id="avatar_upload" accept="image/*" onchange="handleAvatarUpload(this)" />
+          </div>
+
+          <!-- 基础信息 -->
+          <div class="pixel-form-group">
+            <label class="pixel-label">👤 角色昵称 (Name)</label>
+            <input type="text" id="edit_name" class="pixel-input" placeholder="输入角色名..." />
+          </div>
+
+          <div class="pixel-form-group">
+            <label class="pixel-label">📜 人设详情 (Description)</label>
+            <textarea id="edit_description" class="pixel-textarea" placeholder="人设、性格、背景..."></textarea>
+          </div>
+
+          <!-- 用户绑定模块 (新) -->
+          <div class="user-bind-section">
+            <div class="user-bind-title">🔗 绑定用户 (User Binding)</div>
+            <div class="pixel-form-group">
+              <label class="pixel-label">🙂 用户名称 (User Name)</label>
+              <input type="text" id="edit_user_name" class="pixel-input" placeholder="例如: 某某某" />
+            </div>
+            <div class="pixel-form-group">
+              <label class="pixel-label">🎭 用户人设 (User Persona)</label>
+              <textarea
+                id="edit_user_persona"
+                class="pixel-textarea"
+                style="min-height: 60px"
+                placeholder="用户在这个世界中的设定..."
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- 世界书 (Before) -->
+          <div class="wb-section">
+            <div class="wb-header">
+              <span>🌍 前置世界书 (Before Char)</span>
+              <button class="pixel-btn btn-new btn-mini" onclick="addWBEntry('before', -1)">+ 顶部新增</button>
+            </div>
+            <ul id="wb_list_before" class="wb-list"></ul>
+          </div>
+
+          <!-- 世界书 (After) -->
+          <div class="wb-section">
+            <div class="wb-header">
+              <span>🌌 后置世界书 (After Char)</span>
+              <button class="pixel-btn btn-new btn-mini" onclick="addWBEntry('after', -1)">+ 顶部新增</button>
+            </div>
+            <ul id="wb_list_after" class="wb-list"></ul>
+          </div>
+
+          <!-- 底部按钮 -->
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px">
+            <div style="display: flex; gap: 10px">
+              <button class="pixel-btn btn-import" onclick="exportCharacter()" style="flex: 1">
+                📤 导出 (PNG/JSON)
+              </button>
+              <button class="pixel-btn btn-new" onclick="duplicateCharacter()" style="flex: 1">📑 复制角色</button>
+            </div>
+            <div style="display: flex; gap: 10px">
+              <button class="pixel-btn btn-del" onclick="deleteCharacter()" style="flex: 1">🗑 删除</button>
+              <button class="pixel-btn btn-save" onclick="saveCurrentChar()" style="flex: 2">💾 保存更改</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 隐藏组件 -->
+    <input type="file" id="file_import" accept=".json,.png" onchange="handleFileImport(this)" />
+
+    <div id="pixel-modal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-title" id="modal-title">Alert</div>
+        <div class="modal-content" id="modal-message">Content</div>
+        <div class="modal-actions">
+          <button class="pixel-btn btn-new" id="modal-no">取消</button>
+          <button class="pixel-btn btn-save" id="modal-yes">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="pixel-prompt" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-title" id="prompt-title">Input</div>
+        <div class="modal-content">
+          <p id="prompt-message" style="margin: 0 0 10px 0">请输入:</p>
+          <!-- 单行输入 -->
+          <input type="text" id="prompt-input" class="pixel-input" style="text-align: center" />
+          <!-- 多行输入 (新增) -->
+          <textarea id="prompt-textarea"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="pixel-btn btn-new" id="prompt-cancel">取消</button>
+          <button class="pixel-btn btn-save" id="prompt-confirm">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部署名 (可修改文案) -->
+    <div class="footer-sign">© DESIGN BY 月見tsukimi 2025</div>
+
+    <script>
+      // ================= 数据库初始化 =================
+      const db = new Dexie('PixelChatDB');
+
+      // 声明版本和表结构（必须与 Chat.4.html 保持一致）
+      db.version(2).stores({
+        history: '++id, charId, role, content, type, timestamp',
+        images: '++id, blob',
+        stickers: '++id, blob, timestamp',
+        characters: 'id, name, avatar, user_avatar', // 角色表
+      });
+      // ================= 全局状态 =================
+      let characters = [];
+      let currentEditId = null;
+      let originalCharData = null; // 用于检测修改
+
+      // ================= 初始化 =================
+      window.onload = function () {
+        // 只需要调用读取，读取成功后它会自动调用 renderList()
+        // showList() 也可以留着用于初始化一些 UI 状态，但不要指望它能渲染出数据
+        showList();
+        loadFromDB();
+      };
+
+      // ================= 🎨 全局主题管理 (请复制到所有 4 个文件的 script 中) =================
+
+      // 1. 初始化主题 (打开页面时立即执行)
+      function initTheme() {
+        // 尝试读取本地存储，如果没有则默认为 'pink'
+        const savedTheme = localStorage.getItem('momo_theme') || 'pink';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      }
+
+      // 2. 切换主题 (点击按钮时执行)
+      function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        // 如果是 pink 就切 blue，否则切 pink
+        const next = current === 'pink' ? 'blue' : 'pink';
+
+        // 应用并保存到本地存储
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('momo_theme', next);
+
+        // ★ 特殊处理：如果是主页(index.html)，还需要更新欢迎语
+        if (typeof updateWelcomeText === 'function') {
+          updateWelcomeText(next);
+        }
+      }
+
+      // ★ 3. 立即运行初始化
+      initTheme();
+
+      // ================= 数据层 =================
+      // function loadCharacters() {
+      //   const stored = localStorage.getItem('my_characters');
+      //   if (stored) {
+      //     try {
+      //       characters = JSON.parse(stored);
+      //     } catch (e) {
+      //       characters = [];
+      //     }
+      //   }
+      //   renderList();
+      // }
+      // === 修改后的读取逻辑 ===
+      async function loadFromDB() {
+        try {
+          // 从数据库获取所有角色
+          const savedChars = await db.characters.toArray();
+
+          if (savedChars && savedChars.length > 0) {
+            characters = savedChars;
+          } else {
+            // ★ 兼容性迁移：如果数据库是空的，尝试从旧的 localStorage 恢复一次
+            const localData = localStorage.getItem('my_characters');
+            if (localData) {
+              try {
+                characters = JSON.parse(localData);
+                // 迁移后立即存入数据库
+                await db.characters.bulkPut(characters);
+                // console.log('已从 localStorage 迁移数据到 IndexedDB');
+                // 迁移成功后，可以考虑清空 localStorage 释放空间
+                // localStorage.removeItem('my_characters');
+              } catch (e) {
+                console.error('旧数据解析失败', e);
+              }
+            }
+          }
+
+          // ★★★ 核心修改在这里 ★★★
+          // 之前这里被注释掉了，而且名字写的是 renderCharacterList (这是错的)
+          // 必须在这里调用 renderList()，确保数据拿到后立即刷新界面
+          renderList();
+        } catch (err) {
+          console.error('读取数据库失败:', err);
+        }
+      }
+
+      // === 修改后的保存函数 ===
+      async function saveToLocal() {
+        try {
+          // 1. 使用 bulkPut 批量保存/更新角色数据到 IndexedDB
+          // (bulkPut 会自动根据 id 去重或更新，非常方便)
+          await db.characters.bulkPut(characters);
+
+          // console.log('数据已成功保存到数据库');
+
+          // 可选：为了兼容性，也可以在 localStorage 存一个简单的标记或版本号，但不要存大图
+          localStorage.setItem('data_version', Date.now());
+        } catch (err) {
+          console.error('保存失败:', err);
+          alert('保存失败: ' + err.message);
+        }
+      }
+
+      // ================= 视图切换 =================
+      function showList() {
+        document.getElementById('view-list').style.display = 'block';
+        document.getElementById('view-edit').style.display = 'none';
+        originalCharData = null; // 清除快照
+        renderList();
+      }
+
+      function showEdit(id) {
+        document.getElementById('view-list').style.display = 'none';
+        document.getElementById('view-edit').style.display = 'block';
+        loadCharToEdit(id);
+      }
+
+      // ================= 返回检测逻辑 (新) =================
+      async function handleBack() {
+        if (!currentEditId || !originalCharData) {
+          showList();
+          return;
+        }
+
+        // 获取当前数据状态进行比对
+        const currentChar = characters.find(c => c.id === currentEditId);
+        // 这里需要构建一个临时的对象来比对，因为 edit 视图是实时修改 characters 数组中的 WB 引用？
+        // 不，之前的逻辑里，delete/add WB 是直接修改 characters 数组的。
+        // 而 name/desc 是 save 时才写入。
+        // 为了准确，我们需要在 add/delete WB 时不直接 saveToLocal，但内存里的 char 已经变了。
+        // 而 edit_name input 里的值还没写回 char。
+
+        // 简易策略：比对 input 的值与 original，以及 WB 数组与 original。
+        // 但因为 WB 操作是实时修改了内存对象 characters[i]，所以我们需要深拷贝 original。
+        // 获取当前界面上的值
+        const nameVal = document.getElementById('edit_name').value;
+        const descVal = document.getElementById('edit_description').value;
+        const uNameVal = document.getElementById('edit_user_name').value;
+        const uPersonaVal = document.getElementById('edit_user_persona').value;
+
+        // 🛠️ 辅助工具：标准化数据，防止 undefined !== "" 导致的误报
+        const str = v => (v === undefined || v === null ? '' : String(v));
+        const arr = v => (v === undefined || v === null ? [] : v);
+
+        // 检查基本字段
+        let isDirty =
+          nameVal !== str(originalCharData.name) ||
+          descVal !== str(originalCharData.description) ||
+          uNameVal !== str(originalCharData.user_name) ||
+          uPersonaVal !== str(originalCharData.user_persona) ||
+          // 检查头像 (内存对象中的 avatar 在 upload 时已更新)
+          str(currentChar.avatar) !== str(originalCharData.avatar) ||
+          // 检查世界书 (内存对象中的 WB 在 add/del 时已更新)
+          JSON.stringify(arr(currentChar.world_info_before)) !==
+            JSON.stringify(arr(originalCharData.world_info_before)) ||
+          JSON.stringify(arr(currentChar.world_info_after)) !== JSON.stringify(arr(originalCharData.world_info_after));
+
+        if (isDirty) {
+          // 第一层：确认返回
+          const confirmReturn = await showPixelConfirm(
+            '检测到未保存的修改\n确定要返回吗？\n(确定=进入保存选择，取消=继续编辑)',
+            '未保存提醒',
+          );
+
+          if (confirmReturn) {
+            // 第二层：确认保存
+            const confirmSave = await showPixelConfirm(
+              '要保存更改后退出吗？\n(确定=保存并退出，取消=不保存并返回)',
+              '保存确认',
+            );
+
+            if (confirmSave) {
+              await saveCurrentChar();
+              showList();
+            } else {
+              // 不保存：重置数据
+              loadFromDB();
+              showList();
+            }
+          }
+        } else {
+          showList();
+        }
+      }
+
+      // ================= 列表渲染 =================
+      function renderList() {
+        const container = document.getElementById('char-list-container');
+        container.innerHTML = '';
+        if (characters.length === 0) {
+          container.innerHTML =
+            '<div style="grid-column: 1/-1; text-align:center; color:var(--text-sub); margin-top:20px;">暂无角色，请新建或导入</div>';
+          return;
+        }
+        characters.forEach(char => {
+          const div = document.createElement('div');
+          div.className = 'char-card-item';
+          div.onclick = () => showEdit(char.id);
+          let avatarSrc = char.avatar || '';
+          if (avatarSrc && !avatarSrc.startsWith('http') && !avatarSrc.startsWith('data:')) {
+            avatarSrc = 'data:image/png;base64,' + avatarSrc;
+          }
+          // 修改下方 img 标签的 onerror 属性
+          div.innerHTML = `
+                <img class="char-avatar-small" src="${avatarSrc}" onerror="this.src='https://i.postimg.cc/J04FJMsS/1768119599448.png'">
+                <div class="char-name">${char.name || 'Unnamed'}</div>
+            `;
+          container.appendChild(div);
+        });
+      }
+
+      // ================= 编辑逻辑 =================
+      function createNewChar() {
+        const newChar = {
+          id: Date.now().toString(),
+          name: '新角色',
+          // 修改点 1：设置角色默认头像
+          avatar: 'https://i.postimg.cc/J04FJMsS/1768119599448.png',
+          description: '',
+          user_name: '',
+          // 修改点 2：添加用户默认头像字段
+          user_avatar: 'https://i.postimg.cc/vH2JrgLf/1768119594937.png',
+          user_persona: '',
+          world_info_before: [],
+          world_info_after: [],
+        };
+        characters.push(newChar);
+        saveToLocal();
+        showEdit(newChar.id);
+      }
+
+      function loadCharToEdit(id) {
+        const char = characters.find(c => c.id === id);
+        if (!char) return showList();
+
+        // 备份原始数据，用于检测修改 (Deep Copy)
+        originalCharData = JSON.parse(JSON.stringify(char));
+
+        currentEditId = id;
+        document.getElementById('edit_name').value = char.name || '';
+        document.getElementById('edit_description').value = char.description || '';
+        document.getElementById('edit_user_name').value = char.user_name || '';
+        document.getElementById('edit_user_persona').value = char.user_persona || '';
+
+        let avatarSrc = char.avatar || '';
+        if (avatarSrc && !avatarSrc.startsWith('http') && !avatarSrc.startsWith('data:')) {
+          avatarSrc = 'data:image/png;base64,' + avatarSrc;
+        }
+        document.getElementById('edit_avatar_preview').src = avatarSrc;
+
+        renderWBList('before', char.world_info_before || []);
+        renderWBList('after', char.world_info_after || []);
+      }
+
+      async function saveCurrentChar() {
+        const charIndex = characters.findIndex(c => c.id === currentEditId);
+        if (charIndex === -1) return;
+
+        characters[charIndex].name = document.getElementById('edit_name').value;
+        characters[charIndex].description = document.getElementById('edit_description').value;
+        characters[charIndex].user_name = document.getElementById('edit_user_name').value;
+        characters[charIndex].user_persona = document.getElementById('edit_user_persona').value;
+
+        if (await showPixelConfirm('确定保存更改吗？', '保存')) {
+          saveToLocal();
+          // 更新备份，避免保存后点返回还提示
+          originalCharData = JSON.parse(JSON.stringify(characters[charIndex]));
+        }
+      }
+
+      // async function deleteCurrentChar() {
+      //   if (await showPixelConfirm('确定要删除这个角色吗？删除后无法恢复', '删除警告')) {
+      //     characters = characters.filter(c => c.id !== currentEditId);
+      //     saveToLocal();
+      //     showList();
+      //   }
+      // }
+      // === 修复后的删除函数 ===
+      async function deleteCharacter(id) {
+        // 1. 确定目标 ID
+        // 如果函数调用时传了 id (列表页删除)，就用传进来的
+        // 如果没传 id (编辑页按钮)，就用全局变量 currentEditId
+        const targetId = id || currentEditId;
+
+        if (!targetId) {
+          console.error('删除失败：找不到 ID');
+          return;
+        }
+
+        // 2. 弹出确认框 (防止手滑)
+        if (await showPixelConfirm('确定要删除这个角色吗？删除后无法恢复', '删除警告')) {
+          try {
+            // 3. 从内存数组删除
+            const index = characters.findIndex(c => c.id === targetId);
+            if (index > -1) {
+              characters.splice(index, 1);
+            }
+
+            // 4. 从数据库物理删除
+            await db.characters.delete(targetId);
+
+            // 5. 提示并返回列表
+            // await showPixelConfirm('角色已删除', '提示'); // 可选
+
+            // 如果是在编辑页删除的，删完要返回列表
+            if (targetId === currentEditId) {
+              showList();
+            } else {
+              // 如果是在列表页删的，只需要刷新列表
+              renderList();
+            }
+          } catch (err) {
+            console.error(err);
+            showPixelConfirm('删除出错: ' + err.message, '错误');
+          }
+        }
+      }
+      // ================= [新增/修复] 世界书渲染函数 =================
+      function renderWBList(type, list) {
+        const ul = document.getElementById(`wb_list_${type}`);
+        if (!ul) return;
+        ul.innerHTML = ''; // 清空当前列表
+
+        if (!list || list.length === 0) {
+          ul.innerHTML =
+            '<div style="color:var(--text-sub);font-size:0.8rem;text-align:center;padding:5px;">(暂无内容)</div>';
+          return;
+        }
+
+        list.forEach((entry, index) => {
+          const li = document.createElement('li');
+          li.className = 'wb-item';
+          if (entry.enabled === false) {
+            li.style.opacity = '0.6'; // 禁用的条目变灰
+            li.style.filter = 'grayscale(1)';
+          }
+
+          // 截取内容预览
+          const contentPreview =
+            entry.content && entry.content.length > 50
+              ? entry.content.substring(0, 50) + '...'
+              : entry.content || '(无内容)';
+
+          // 关键字显示
+          const keysDisplay = entry.keys ? `[${entry.keys}]` : '无';
+
+          // 优先级显示
+          const prio = entry.insertion_order !== undefined ? entry.insertion_order : 100;
+
+          li.innerHTML = `
+      <div class="wb-row-main">
+        <div style="flex:1; overflow:hidden;">
+           <div style="font-weight:bold; color:var(--text-main); font-size:0.8rem;">
+             ${keysDisplay}
+           </div>
+           <div style="color:var(--text-sub); font-size:0.75rem; margin-top:2px;">
+             ${contentPreview}
+           </div>
+        </div>
+        <div class="wb-prio-badge" onclick="editWBPriority('${type}', ${index})" title="点击修改优先级">
+           ${prio}
+        </div>
+      </div>
+
+      <div class="wb-row-tools">
+        <button class="pixel-btn btn-mini ${entry.enabled === false ? 'btn-new' : 'btn-save'}" 
+          onclick="toggleWBEntry('${type}', ${index})">
+          ${entry.enabled === false ? '停用中' : '启用中'}
+        </button>
+        <button class="pixel-btn btn-mini btn-back" onclick="moveWBEntry('${type}', ${index}, -1)">▲</button>
+        <button class="pixel-btn btn-mini btn-back" onclick="moveWBEntry('${type}', ${index}, 1)">▼</button>
+        <button class="pixel-btn btn-mini btn-import" onclick="editWBEntry('${type}', ${index})">✎</button>
+        <button class="pixel-btn btn-mini btn-del" onclick="removeWBEntry('${type}', ${index})">✕</button>
+      </div>
+    `;
+          ul.appendChild(li);
+        });
+      }
+
+      function handleAvatarUpload(input) {
+        if (input.files && input.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const base64 = e.target.result;
+            document.getElementById('edit_avatar_preview').src = base64;
+            const char = characters.find(c => c.id === currentEditId);
+            if (char) char.avatar = base64;
+          };
+          reader.readAsDataURL(input.files[0]);
+        }
+      }
+
+      // [新增] 切换世界书条目开关
+      function toggleWBEntry(type, index) {
+        const char = characters.find(c => c.id === currentEditId);
+        if (!char) return;
+
+        const entry = char[`world_info_${type}`][index];
+        // 切换状态
+        entry.enabled = entry.enabled === undefined ? false : !entry.enabled;
+
+        // 重新渲染
+        renderWBList(type, char[`world_info_${type}`]);
+      }
+
+      async function addWBEntry(type, index) {
+        const keys = await showPixelPrompt('请输入触发关键字 (逗号分隔):');
+        if (keys === null) return;
+
+        // 使用多行输入
+        const content = await showPixelPrompt('请输入条目内容:', '', true);
+        if (content === null) return;
+
+        const prioStr = await showPixelPrompt('请输入优先级 (数字, 默认100):', '100');
+        const insertion_order = parseInt(prioStr) || 100;
+
+        const char = characters.find(c => c.id === currentEditId);
+        if (!char[`world_info_${type}`]) char[`world_info_${type}`] = [];
+
+        const newEntry = { keys, content, insertion_order };
+
+        if (index === -1) {
+          char[`world_info_${type}`].unshift(newEntry);
+        } else {
+          char[`world_info_${type}`].splice(index + 1, 0, newEntry);
+        }
+
+        renderWBList(type, char[`world_info_${type}`]);
+      }
+
+      async function removeWBEntry(type, index) {
+        // ① 删除确认
+        if (await showPixelConfirm('确定删除该世界书条目吗？', '删除确认')) {
+          const char = characters.find(c => c.id === currentEditId);
+          char[`world_info_${type}`].splice(index, 1);
+          renderWBList(type, char[`world_info_${type}`]);
+        }
+      }
+
+      // ③ 上移/下移逻辑
+      function moveWBEntry(type, index, direction) {
+        const char = characters.find(c => c.id === currentEditId);
+        const list = char[`world_info_${type}`];
+
+        const targetIndex = index + direction;
+
+        // 边界检查
+        if (targetIndex < 0 || targetIndex >= list.length) return;
+
+        // 交换
+        const temp = list[index];
+        list[index] = list[targetIndex];
+        list[targetIndex] = temp;
+
+        renderWBList(type, list);
+      }
+
+      async function editWBEntry(type, index) {
+        const char = characters.find(c => c.id === currentEditId);
+        const entry = char[`world_info_${type}`][index];
+
+        const newKeys = await showPixelPrompt('修改关键字:', entry.keys);
+        if (newKeys !== null) {
+          // ② 编辑也使用多行输入
+          const newContent = await showPixelPrompt('修改内容:', entry.content, true);
+          if (newContent !== null) {
+            entry.keys = newKeys;
+            entry.content = newContent;
+            renderWBList(type, char[`world_info_${type}`]);
+          }
+        }
+      }
+
+      async function editWBPriority(type, index) {
+        const char = characters.find(c => c.id === currentEditId);
+        const entry = char[`world_info_${type}`][index];
+        const currentPrio = entry.insertion_order !== undefined ? entry.insertion_order : 100;
+
+        const newPrioStr = await showPixelPrompt('修改优先级:', currentPrio);
+        if (newPrioStr !== null) {
+          entry.insertion_order = parseInt(newPrioStr) || 0;
+          renderWBList(type, char[`world_info_${type}`]);
+        }
+      }
+
+      // ================= 导入逻辑 (JSON + PNG) =================
+      function triggerImport() {
+        document.getElementById('file_import').click();
+      }
+
+      function handleFileImport(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        if (file.type === 'application/json') readJSON(file);
+        else if (file.type.startsWith('image/png')) readPNG(file);
+        else showPixelConfirm('不支持的文件格式', '错误');
+        input.value = '';
+      }
+
+      function readJSON(file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            const json = JSON.parse(e.target.result);
+            const cardData = json.data || json;
+            importCardData(cardData, null);
+          } catch (err) {
+            showPixelConfirm('JSON 解析失败', '错误');
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function readPNG(file) {
+        const urlReader = new FileReader();
+        urlReader.onload = function (e) {
+          const base64Avatar = e.target.result;
+          const arrayReader = new FileReader();
+          arrayReader.onload = function (evt) {
+            const buffer = evt.target.result;
+            const textData = extractPngText(buffer);
+            if (textData) {
+              try {
+                const json = JSON.parse(decodeBase64(textData));
+                const cardData = json.data || json;
+                importCardData(cardData, base64Avatar);
+              } catch (err) {
+                try {
+                  const json = JSON.parse(textData);
+                  importCardData(json.data || json, base64Avatar);
+                } catch (err2) {
+                  showPixelConfirm('无法解析 PNG 数据', '错误');
+                }
+              }
+            } else {
+              showPixelConfirm('图片中无角色数据', '错误');
+            }
+          };
+          arrayReader.readAsArrayBuffer(file);
+        };
+        urlReader.readAsDataURL(file);
+      }
+
+      function extractPngText(buffer) {
+        const view = new DataView(buffer);
+        let offset = 8;
+        const decoder = new TextDecoder('utf-8');
+        while (offset < buffer.byteLength) {
+          const length = view.getUint32(offset);
+          const type = decoder.decode(buffer.slice(offset + 4, offset + 8));
+          if (type === 'tEXt' || type === 'iTXt') {
+            const chunkData = new Uint8Array(buffer.slice(offset + 8, offset + 8 + length));
+            let nullIndex = -1;
+            for (let i = 0; i < chunkData.length; i++) {
+              if (chunkData[i] === 0) {
+                nullIndex = i;
+                break;
+              }
+            }
+            if (nullIndex > -1) {
+              const keyword = decoder.decode(chunkData.slice(0, nullIndex));
+              if (keyword === 'chara') return decoder.decode(chunkData.slice(nullIndex + 1));
+            }
+          }
+          offset += 12 + length;
+        }
+        return null;
+      }
+
+      function decodeBase64(str) {
+        return decodeURIComponent(
+          atob(str)
+            .split('')
+            .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join(''),
+        );
+      }
+
+      async function importCardData(data, avatarBase64) {
+        const newChar = {
+          id: Date.now().toString(),
+          name: data.name || '导入角色',
+          avatar: avatarBase64 || '',
+          description: data.description || data.persona || '',
+          user_name: '',
+          user_persona: '',
+          world_info_before: [],
+          world_info_after: [],
+        };
+
+        // 处理 V3 规范的 Character Book
+        if (data.character_book && data.character_book.entries) {
+          data.character_book.entries.forEach(entry => {
+            // 1. 安全处理 keys：不论是数组还是字符串都转为字符串
+            let keysStr = '';
+            if (Array.isArray(entry.keys)) {
+              keysStr = entry.keys.join(',');
+            } else if (typeof entry.keys === 'string') {
+              keysStr = entry.keys;
+            }
+
+            const item = {
+              keys: keysStr,
+              content: entry.content || '',
+              // 导入时保留原有的 enabled 状态，如果没有则默认 true
+              enabled: entry.enabled !== false,
+              insertion_order: entry.insertion_order !== undefined ? entry.insertion_order : 100,
+            };
+
+            // 2. 识别位置 (Before/After)
+            // V3 规范通常用 "before_char" 或 "after_char"，有时是数字索引
+            // 这里的逻辑：明确标记为 before 或者 索引为 0 的放前面，其他默认放后面
+            const isBefore = entry.position === 'before_char' || entry.position === 0;
+
+            if (isBefore) {
+              newChar.world_info_before.push(item);
+            } else {
+              newChar.world_info_after.push(item);
+            }
+          });
+        }
+
+        // 兼容：如果在 scenario 字段里有内容，追加到描述里（这也是常见做法）
+        if (data.scenario) {
+          newChar.description += '\n\n[Scenario]\n' + data.scenario;
+        }
+
+        if (data.first_mes) {
+          // 如果你想保存开场白，可以考虑加个字段，或者暂存到描述里
+          // newChar.first_mes = data.first_mes;
+        }
+
+        characters.push(newChar);
+        await saveToLocal(); // 保存到数据库
+        await showPixelConfirm(`成功导入: ${newChar.name}`, '完成');
+        showList(); // 刷新列表
+      }
+
+      // ================= 弹窗逻辑 =================
+      function showPixelConfirm(message, title = '提示') {
+        return new Promise(resolve => {
+          const modal = document.getElementById('pixel-modal');
+          document.getElementById('modal-title').innerText = title;
+          document.getElementById('modal-message').innerText = message;
+          modal.classList.add('show');
+          const cleanup = () => {
+            modal.classList.remove('show');
+            yesBtn.onclick = null;
+            noBtn.onclick = null;
+          };
+          const yesBtn = document.getElementById('modal-yes');
+          const noBtn = document.getElementById('modal-no');
+          yesBtn.onclick = () => {
+            cleanup();
+            resolve(true);
+          };
+          noBtn.onclick = () => {
+            cleanup();
+            resolve(false);
+          };
+        });
+      }
+
+      // 修改版 Prompt: 支持多行文本
+      function showPixelPrompt(message, defaultVal = '', isMultiline = false) {
+        return new Promise(resolve => {
+          const modal = document.getElementById('pixel-prompt');
+          document.getElementById('prompt-message').innerText = message;
+
+          const input = document.getElementById('prompt-input');
+          const textarea = document.getElementById('prompt-textarea');
+
+          // 切换显示 input 还是 textarea
+          if (isMultiline) {
+            input.style.display = 'none';
+            textarea.style.display = 'block';
+            textarea.value = defaultVal;
+            setTimeout(() => textarea.focus(), 100);
+          } else {
+            textarea.style.display = 'none';
+            input.style.display = 'block';
+            input.value = defaultVal;
+            setTimeout(() => input.focus(), 100);
+          }
+
+          modal.classList.add('show');
+
+          const cleanup = () => {
+            modal.classList.remove('show');
+            okBtn.onclick = null;
+            cancelBtn.onclick = null;
+          };
+          const okBtn = document.getElementById('prompt-confirm');
+          const cancelBtn = document.getElementById('prompt-cancel');
+
+          okBtn.onclick = () => {
+            cleanup();
+            resolve(isMultiline ? textarea.value : input.value);
+          };
+          cancelBtn.onclick = () => {
+            cleanup();
+            resolve(null);
+          };
+        });
+      }
+      // ================= [新增] 角色复制逻辑 =================
+      async function duplicateCharacter() {
+        if (!currentEditId) return;
+        const originalChar = characters.find(c => c.id === currentEditId);
+        if (!originalChar) return;
+
+        // 1. 询问是否复制聊天记录
+        // 这里的 showPixelConfirm 我们稍微改一下用法：确定=复制记录，取消=不复制记录
+        const copyHistory = await showPixelConfirm(
+          '是否连带复制该角色的聊天记录？\n(确定=复制记录，取消=仅复制设定)',
+          '复制选项',
+        );
+
+        try {
+          // 2. 创建新角色对象 (深拷贝)
+          const newId = Date.now().toString();
+          const newChar = JSON.parse(JSON.stringify(originalChar));
+          newChar.id = newId;
+          newChar.name = newChar.name + ' (副本)';
+
+          // 3. 如果需要，复制 IndexedDB 中的聊天记录
+          if (copyHistory) {
+            const history = await db.history.where('charId').equals(originalChar.id).toArray();
+            if (history.length > 0) {
+              const newHistory = history.map(h => {
+                // 移除旧的自增主键 id，并替换 charId
+                const { id, ...rest } = h;
+                return { ...rest, charId: newId };
+              });
+              await db.history.bulkAdd(newHistory);
+              // alert(`已复制 ${newHistory.length} 条聊天记录`);
+            }
+          }
+
+          // 4. 保存并刷新
+          characters.push(newChar);
+          await saveToLocal();
+          await showPixelConfirm(`角色【${newChar.name}】复制成功！`, '成功');
+          showList();
+        } catch (e) {
+          console.error(e);
+          await showPixelConfirm('复制失败: ' + e.message, '错误');
+        }
+      }
+
+      // ================= [新增] 角色导出逻辑 (PNG/JSON) =================
+      async function exportCharacter() {
+        if (!currentEditId) return;
+        const char = characters.find(c => c.id === currentEditId);
+        if (!char) return;
+
+        // 1. 询问导出格式
+        // 确定 = PNG, 取消 = JSON
+        const isPng = await showPixelConfirm(
+          '请选择导出格式：\n(确定 = 导出包含数据的 PNG 图片)\n(取消 = 导出 JSON 文件)',
+          '导出格式选择',
+        );
+
+        // 2. 构建标准 TavernAI 格式数据结构
+        // 为了兼容性，我们需要把 world_info_before/after 合并进 character_book
+        const exportData = {
+          name: char.name,
+          description: char.description,
+          personality: char.description, // 兼容字段
+          scenario: '', // 如果你有存场景，加在这里
+          first_mes: '', // 如果你有存开场白，加在这里
+          mes_example: '',
+          metadata: {
+            user_name: char.user_name,
+            user_persona: char.user_persona,
+            // 自定义字段
+            world_info_before: char.world_info_before,
+            world_info_after: char.world_info_after,
+          },
+          // 构建标准的 character_book
+          character_book: {
+            entries: [],
+          },
+        };
+
+        // 合并世界书条目到 character_book
+        const processWB = (list, position) => {
+          if (!list) return;
+          list.forEach(item => {
+            exportData.character_book.entries.push({
+              keys: item.keys.split(','),
+              content: item.content,
+              enabled: item.enabled !== false,
+              insertion_order: item.insertion_order,
+              position: position, // 记录是 before 还是 after
+            });
+          });
+        };
+        processWB(char.world_info_before, 'before_char');
+        processWB(char.world_info_after, 'after_char');
+
+        const fileName = char.name.replace(/[\\/:*?"<>|]/g, '_');
+
+        if (isPng) {
+          // === 导出 PNG ===
+          if (!char.avatar) {
+            await showPixelConfirm('该角色没有头像，无法生成角色卡 PNG，将自动转为 JSON 导出。', '提示');
+            downloadJSON(exportData, fileName);
+            return;
+          }
+          await downloadPNGCard(char.avatar, exportData, fileName);
+        } else {
+          // === 导出 JSON ===
+          downloadJSON(exportData, fileName);
+        }
+      }
+
+      // 辅助：下载 JSON
+      // [修改] 辅助：下载 JSON -> 改用 smartSave
+      function downloadJSON(data, fileName) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        // 调用智能保存
+        smartSave(blob, `${fileName}.json`);
+      }
+
+      // 辅助：下载 PNG (带 tEXt 块注入)
+      // [修改] 辅助：下载 PNG -> 改用 smartSave
+      async function downloadPNGCard(base64Avatar, dataObj, fileName) {
+        const img = new Image();
+        // 处理 base64 前缀
+        const src = base64Avatar.startsWith('data:') ? base64Avatar : 'data:image/png;base64,' + base64Avatar;
+        img.src = src;
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+
+          canvas.toBlob(async blob => {
+            // 转为 ArrayBuffer 以便注入数据
+            const buffer = await blob.arrayBuffer();
+
+            // 准备嵌入的数据
+            const jsonStr = JSON.stringify(dataObj);
+            const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
+
+            // 注入 tEXt chunk
+            const keyword = 'chara';
+            const textContent = base64Data;
+            const newBuffer = writePngTextChunk(buffer, keyword, textContent);
+
+            // 生成最终 Blob
+            const finalBlob = new Blob([newBuffer], { type: 'image/png' });
+
+            // ★★★ 核心修改：调用智能保存 ★★★
+            smartSave(finalBlob, `${fileName}.png`);
+          }, 'image/png'); // 明确指定 mime type
+        };
+      }
+
+      // 核心：写入 PNG tEXt 块 (二进制操作)
+      function writePngTextChunk(arrayBuffer, keyword, text) {
+        const encoder = new TextEncoder();
+        const keywordBytes = encoder.encode(keyword);
+        const textBytes = encoder.encode(text);
+
+        // tEXt chunk 数据部分 = keyword + null separator + text
+        const chunkDataLen = keywordBytes.length + 1 + textBytes.length;
+        const totalChunkLen = 4 + 4 + chunkDataLen + 4; // Len + Type + Data + CRC
+
+        const outputBuffer = new Uint8Array(arrayBuffer.byteLength + totalChunkLen);
+        const view = new DataView(outputBuffer.buffer);
+        const inputView = new DataView(arrayBuffer);
+
+        // PNG 签名是前 8 字节
+        outputBuffer.set(new Uint8Array(arrayBuffer.slice(0, 8)), 0);
+
+        let offset = 8;
+        let inputOffset = 8;
+
+        // 寻找 IEND 块，插入在 IEND 之前
+        while (inputOffset < arrayBuffer.byteLength) {
+          const len = inputView.getUint32(inputOffset);
+          const type = inputView.getUint32(inputOffset + 4); // 这里读出来是数字，需要转字符判断
+
+          // IEND 的 ASCII 码: 0x49454E44
+          if (type === 0x49454e44) {
+            break; // 找到了 IEND，停止复制，先插入我们的块
+          }
+
+          // 复制当前块到输出
+          outputBuffer.set(new Uint8Array(arrayBuffer.slice(inputOffset, inputOffset + 12 + len)), offset);
+          offset += 12 + len;
+          inputOffset += 12 + len;
+        }
+
+        // === 插入 tEXt 块 ===
+        // 1. Length
+        view.setUint32(offset, chunkDataLen);
+        offset += 4;
+
+        // 2. Type (tEXt = 0x74455874)
+        view.setUint32(offset, 0x74455874);
+        offset += 4;
+
+        // 3. Data (Keyword + 0 + Text)
+        outputBuffer.set(keywordBytes, offset);
+        offset += keywordBytes.length;
+        outputBuffer[offset] = 0; // Null separator
+        offset += 1;
+        outputBuffer.set(textBytes, offset);
+        offset += textBytes.length;
+
+        // 4. CRC (计算 Type + Data)
+        // 为了简化，这里我们不计算真实的 CRC，某些严格的阅读器可能会报错，
+        // 但大多数 Web 应用忽略 CRC 校验。如果需要严格 CRC，需要引入 CRC32 算法表。
+        // 既然环境受限，这里填 0 或者尝试计算简单的。
+        // 为了保证可用性，可以尝试复制一个通用的 CRC32 函数，或者直接由浏览器容错。
+        // 这里我们加上一个简易 CRC32 实现以防万一。
+        const crcStart = offset - chunkDataLen - 4;
+        const crcData = outputBuffer.slice(crcStart, offset);
+        const crc = crc32(crcData);
+        view.setUint32(offset, crc);
+        offset += 4;
+
+        // === 复制剩余的 IEND 块 ===
+        outputBuffer.set(new Uint8Array(arrayBuffer.slice(inputOffset)), offset);
+
+        return outputBuffer.buffer;
+      }
+
+      // 简易 CRC32 表生成与计算
+      let crcTable = [];
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) {
+          if (c & 1) c = 0xedb88320 ^ (c >>> 1);
+          else c = c >>> 1;
+        }
+        crcTable[n] = c;
+      }
+
+      function crc32(buf) {
+        let crc = 0xffffffff;
+        for (let i = 0; i < buf.length; i++) {
+          crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+        }
+        return crc ^ 0xffffffff;
+      }
+
+      // ================= [修复版] 智能保存逻辑 (源自 index.9.html) =================
+
+      /**
+       * 智能保存入口：自动判断环境
+       */
+      function smartSave(blob, filename) {
+        // 1. 如果是 Cordova APP 环境 (且有文件插件)
+        if (window.cordova && cordova.file) {
+          saveToMobile(blob, filename);
+        }
+        // 2. 如果是普通浏览器环境
+        else {
+          // 方案 A: 尝试使用 FileSaver.js (如果有的话)
+          if (typeof saveAs === 'function') {
+            saveAs(blob, filename);
+          }
+          // 方案 B: 如果没有 FileSaver，回退到原生 <a> 标签下载
+          else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+          }
+        }
+      }
+
+      /**
+       * 手机端专用：更强壮的写入逻辑 (修复无反应问题)
+       */
+      function saveToMobile(blob, filename) {
+        // 1. 先提示用户正在处理 (适配 Cards 的弹窗风格)
+        // 注意：这里我们只显示提示，不等待用户点击，直接开始后台处理
+        const modal = document.getElementById('pixel-modal');
+        document.getElementById('modal-title').innerText = '保存中';
+        document.getElementById('modal-message').innerText = '正在写入手机 Download 目录...\n请勿关闭应用(◍′˘‵◍)';
+        modal.classList.add('show');
+        // 隐藏按钮，防止用户在写入时乱点（可选优化）
+        document.getElementById('modal-yes').style.display = 'none';
+        document.getElementById('modal-no').style.display = 'none';
+
+        const storageLocation = cordova.file.externalRootDirectory || cordova.file.externalDataDirectory;
+
+        window.resolveLocalFileSystemURL(
+          storageLocation,
+          function (dirEntry) {
+            dirEntry.getDirectory(
+              'Download',
+              { create: true, exclusive: false },
+              function (downDir) {
+                downDir.getFile(
+                  filename,
+                  { create: true, exclusive: false },
+                  function (fileEntry) {
+                    fileEntry.createWriter(function (fileWriter) {
+                      // === 核心修复：分块写入逻辑 (参考 index.9) ===
+                      const CHUNK_SIZE = 1024 * 1024; // 1MB
+                      let offset = 0;
+
+                      // 定义写入完成后的回调
+                      fileWriter.onwriteend = function () {
+                        offset += CHUNK_SIZE;
+
+                        if (offset < blob.size) {
+                          // 如果还没写完，移动指针继续写下一块
+                          fileWriter.seek(fileWriter.length);
+                          writeNextChunk();
+                        } else {
+                          // 全部写完，恢复按钮并显示成功
+                          document.getElementById('modal-title').innerText = '导出完成';
+                          document.getElementById(
+                            'modal-message',
+                          ).innerText = `✅ 保存成功！\n文件已存入：Download/${filename}`;
+                          document.getElementById('modal-yes').style.display = 'inline-block';
+                          document.getElementById('modal-yes').innerText = '好耶';
+
+                          // 重新绑定关闭事件
+                          document.getElementById('modal-yes').onclick = function () {
+                            modal.classList.remove('show');
+                          };
+                        }
+                      };
+
+                      // 定义错误回调
+                      fileWriter.onerror = function (e) {
+                        document.getElementById('modal-title').innerText = '错误';
+                        document.getElementById('modal-message').innerText = '写入失败：' + e.toString();
+                        document.getElementById('modal-yes').style.display = 'inline-block';
+                        document.getElementById('modal-yes').innerText = '关闭';
+                        document.getElementById('modal-yes').onclick = function () {
+                          modal.classList.remove('show');
+                        };
+                      };
+
+                      // 定义分块写入函数
+                      function writeNextChunk() {
+                        const slice = blob.slice(offset, offset + CHUNK_SIZE);
+                        fileWriter.write(slice);
+                      }
+
+                      // === 关键步骤：先清空文件 ===
+                      // 很多安卓机如果直接覆盖写入会失败，必须先 truncate(0)
+                      // truncate 也是异步的，利用它的回调来触发第一次写入
+                      const originalOnWriteEnd = fileWriter.onwriteend; // 备份上面的逻辑
+
+                      // 临时覆盖回调，用于处理 Truncate 完成
+                      fileWriter.onwriteend = function () {
+                        // 恢复正常写入逻辑
+                        fileWriter.onwriteend = originalOnWriteEnd;
+                        // 开始写第一块
+                        writeNextChunk();
+                      };
+
+                      // 执行清空
+                      fileWriter.truncate(0);
+                    });
+                  },
+                  function (err) {
+                    alert('创建文件失败: ' + JSON.stringify(err));
+                    modal.classList.remove('show');
+                  },
+                );
+              },
+              function (err) {
+                alert('找不到 Download 目录: ' + JSON.stringify(err));
+                modal.classList.remove('show');
+              },
+            );
+          },
+          function (err) {
+            alert('无法访问存储权限: ' + JSON.stringify(err));
+            modal.classList.remove('show');
+          },
+        );
+      }
+
+      // ==========================================
+      // 🏠 顶部导航栏点击 -> 返回主页 (index.html)
+      // ==========================================
+      (function initTopBarNav() {
+        const topBar = document.querySelector('.top-bar');
+        if (!topBar) return;
+
+        // 1. 鼠标放上去变成小手，提示可点击
+        topBar.style.cursor = 'pointer';
+
+        // 2. 绑定点击事件
+        topBar.addEventListener('click', function (e) {
+          // ★ 防止误触：如果点击的是按钮(button)或按钮里的图标，就不跳转
+          if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+            return;
+          }
+
+          // 跳转回同目录下的 index.html
+          window.location.href = 'index.html';
+        });
+      })();
+    </script>
+  </body>
+</html>
