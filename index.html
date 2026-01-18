@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="pink">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>TSUKIMI OS // 主页</title>
+    <script src="cordova.js"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <script src="cordova.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --font-pixel: 'DotGothic16', sans-serif;
+        --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+
+      /* === 🌸 Pink Theme === */
+      [data-theme='pink'] {
+        --bg-color: #fff5f8;
+        --bg-pattern: radial-gradient(#ffd1dc 15%, transparent 16%) 0 0;
+        --panel-bg: #fff;
+        --text-main: #6d597a;
+        --text-sub: #b5838d;
+        --border-color: #ffc8dd;
+        --shadow-color: #ffafcc;
+        --accent-color: #ffafcc;
+        --card-bg: #fff0f5;
+        --btn-hover: #ffe5ec;
+        /* [新增] 按钮颜色变量 */
+        --btn-save-bg: #cdb4db; /* 确定/保存按钮 */
+        --btn-new-bg: #bde0fe; /* 取消/普通按钮 */
+        --modal-overlay: rgba(255, 245, 248, 0.8);
+        --btn-del-bg: #ffafcc; /* [新增] 删除按钮颜色 */
+      }
+
+      /* === ☁️ Blue Theme === */
+      [data-theme='blue'] {
+        --bg-color: #f0f8ff;
+        --bg-pattern: linear-gradient(rgba(162, 210, 255, 0.4) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(162, 210, 255, 0.4) 1px, transparent 1px);
+        --panel-bg: #fdfffd;
+        --text-main: #546a7b;
+        --text-sub: #98c1d9;
+        --border-color: #a2d2ff;
+        --shadow-color: #bde0fe;
+        --accent-color: #bde0fe;
+        --card-bg: #f0f8ff;
+        --btn-hover: #e0fbfc;
+        /* [新增] 按钮颜色变量 */
+        --btn-save-bg: #b7e4c7;
+        --btn-new-bg: #ffcdb2;
+        --modal-overlay: rgba(240, 248, 255, 0.8);
+        --btn-del-bg: #ffafcc; /* [新增] 删除按钮颜色 */
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      body {
+        font-family: var(--font-pixel);
+        background-color: var(--bg-color);
+        background-image: var(--bg-pattern);
+        background-size: 20px 20px;
+        color: var(--text-main);
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow-x: hidden;
+        user-select: none;
+        transition: background 0.3s;
+      }
+
+      /* === 顶部状态栏 === */
+      .status-bar {
+        width: 100%;
+        max-width: 600px;
+        height: 50px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(5px);
+        border-bottom: 2px dashed var(--border-color);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .clock {
+        letter-spacing: 2px;
+      }
+
+      .theme-toggle {
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: transform 0.2s;
+      }
+      .theme-toggle:active {
+        transform: rotate(15deg) scale(0.9);
+      }
+
+      /* === 主容器 === */
+      .container {
+        width: 100%;
+        max-width: 600px;
+        padding: 20px 20px 7px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        animation: floatIn 0.5s ease-out;
+      }
+
+      @keyframes floatIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* === 小组件区域 === */
+      .widget-row {
+        display: flex;
+        gap: 15px;
+        height: 160px;
+      }
+
+      /* 拍立得相框组件 */
+      .widget-polaroid {
+        flex: 1;
+        background: #fff;
+        border: 2px solid var(--border-color);
+        padding: 10px 10px 10px 10px;
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        transform: rotate(-2deg);
+        transition: transform 0.3s;
+        cursor: pointer;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* ★★★ 重点修改：这里千万不能有 overflow: hidden，否则胶带会被切掉 ★★★ */
+        overflow: visible;
+      }
+      .widget-polaroid:hover {
+        transform: rotate(0deg) scale(1.02);
+        z-index: 10;
+      }
+      .polaroid-img {
+        width: 100%;
+        height: 100%;
+        background: var(--bg-color);
+        object-fit: cover;
+        border: 1px solid #eee;
+      }
+      .polaroid-placeholder {
+        position: absolute;
+        color: var(--text-sub);
+        font-size: 0.8rem;
+        text-align: center;
+        pointer-events: none;
+      }
+      /* 修改胶带：定位到顶部负距离，层级调高 */
+      .polaroid-tape {
+        position: absolute;
+        top: -12px; /* 让它往上跑，超出相框边界 */
+        left: 50%;
+        transform: translateX(-50%) rotate(-1deg); /* 稍微歪一点更真实 */
+        width: 90px; /* 稍微加宽一点 */
+        height: 24px;
+        background: var(--border-color); /* 半透明白 */
+        border: 1px solid rgba(0, 0, 0, 0.1); /* 淡淡的边框 */
+
+        backdrop-filter: blur(2px); /* 磨砂质感 */
+        z-index: 20; /* 关键：层级要比图片高 */
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+
+        transition: transform 0.1s;
+        border: 2px solid #fff;
+      }
+
+      /* 便签组件 */
+      .widget-memo {
+        flex: 1;
+        background: var(--panel-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 15px;
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .memo-header {
+        background: var(--border-color);
+        color: #fff;
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        font-weight: bold;
+      }
+      .memo-content {
+        flex: 1;
+        border: none;
+        resize: none;
+        padding: 10px;
+        font-family: var(--font-pixel);
+        font-size: 0.9rem;
+        color: var(--text-main);
+        background: transparent;
+        outline: none;
+        line-height: 1.4;
+      }
+
+      /* === 欢迎语 === */
+      .welcome-banner {
+        background: var(--panel-bg);
+        border: 2px dashed var(--border-color);
+        border-radius: 20px;
+        padding: 15px;
+        text-align: center;
+        color: var(--text-sub);
+        font-size: 0.9rem;
+      }
+
+      /* === APP 图标网格 === */
+      .app-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* 两列布局 */
+        gap: 15px;
+      }
+
+      /* 占据整行的 APP (Chat) */
+      .app-item.full-width {
+        grid-column: span 2;
+        background: linear-gradient(135deg, var(--panel-bg) 0%, var(--card-bg) 100%);
+      }
+
+      .app-item {
+        background: var(--panel-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 18px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--text-main);
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        transition: all 0.1s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .app-item:active {
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+      }
+
+      .app-icon {
+        font-size: 2.5rem;
+        background: var(--bg-color);
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--border-color);
+      }
+
+      .app-name {
+        font-weight: bold;
+        font-size: 1rem;
+      }
+
+      .app-desc {
+        font-size: 0.7rem;
+        color: var(--text-sub);
+        opacity: 0.8;
+      }
+
+      /* === 底部 === */
+      .footer-sign {
+        text-align: center;
+        color: var(--text-sub);
+        font-size: 0.77rem;
+        margin-top: 0px;
+        opacity: 0.9;
+        padding-bottom: 0px;
+      }
+
+      /* 隐藏文件上传 */
+      #cover-upload {
+        display: none;
+      }
+      /* === 设置弹窗样式 === */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 2000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.2s ease;
+      }
+      .modal-box {
+        background: var(--panel-bg);
+        border: 2px solid var(--border-color);
+        box-shadow: 6px 6px 0 var(--shadow-color);
+        padding: 20px;
+        width: 85%;
+        max-width: 320px;
+        border-radius: 15px;
+        text-align: center;
+        transform: scale(0.95);
+        animation: popUp 0.2s forwards;
+      }
+      .modal-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--text-main);
+        margin-bottom: 15px;
+        border-bottom: 2px dashed var(--border-color);
+        padding-bottom: 10px;
+      }
+      .setting-btn {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 10px;
+        background: var(--btn-hover); /* 使用主题定义的颜色 */
+        border: 2px solid var(--border-color);
+        color: var(--text-main);
+        font-family: var(--font-pixel);
+        font-size: 1rem;
+        cursor: pointer;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: transform 0.1s;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+        transition: transform 0.1s;
+        border: 2px solid #fff;
+      }
+      .setting-btn:active {
+        transform: scale(0.98);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes popUp {
+        from {
+          transform: scale(0.9);
+        }
+        to {
+          transform: scale(1);
+        }
+      }
+      /* === [新增] 通用弹窗按钮样式 === */
+      .modal-content {
+        margin-bottom: 20px;
+        line-height: 1.5;
+        color: var(--text-sub);
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .pixel-btn {
+        flex: 1;
+        padding: 10px 12px;
+        border: 2px solid #fff; /* 像素风双层边框 */
+        border-radius: 10px;
+        font-family: var(--font-pixel);
+        font-size: 0.9rem;
+        cursor: pointer;
+        color: #fff;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+        transition: transform 0.1s;
+      }
+
+      .pixel-btn:active {
+        transform: translateY(3px);
+        box-shadow: none;
+      }
+
+      .btn-confirm {
+        background-color: var(--btn-save-bg);
+      }
+      .btn-cancel {
+        background-color: var(--btn-new-bg);
+        color: #555;
+      }
+      /* === [新增] 文件夹组件样式 === */
+      .app-folder-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: 12px;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      .folder-mini-icon {
+        width: 100%;
+        height: 100%;
+        background: var(--text-sub);
+        border-radius: 4px;
+        opacity: 0.6;
+      }
+      /* 文件夹展开后的网格 */
+      .folder-modal-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        padding: 10px;
+      }
+      .folder-app-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+      }
+      .folder-app-icon {
+        width: 50px;
+        height: 50px;
+        background: var(--btn-new-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+      }
+      .folder-app-name {
+        font-size: 0.7rem;
+        color: var(--text-main);
+      }
+      /* === 🔋 像素电量组件样式 === */
+      .battery-widget {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 5px; /* 与左边图标的间距 */
+        font-family: var(--font-pixel);
+        cursor: default;
+      }
+
+      /* 电量百分比文字 */
+      .battery-text {
+        font-size: 0.9rem;
+        font-weight: bold;
+        color: var(--text-main);
+        min-width: 32px; /* 防止数字跳动导致布局抖动 */
+        text-align: right;
+      }
+
+      /* 电池外壳 */
+      .battery-shell {
+        width: 32px;
+        height: 16px;
+        border: 2px solid var(--text-main);
+        padding: 2px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        /* 像素风电池头 */
+        margin-right: 4px; /* 给电池头留位置 */
+      }
+
+      /* 电池正极头 (用伪元素画) */
+      .battery-shell::after {
+        content: '';
+        position: absolute;
+        right: -5px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 8px;
+        background: var(--text-main);
+        border-top-right-radius: 2px;
+        border-bottom-right-radius: 2px;
+      }
+
+      /* 内部电量条 */
+      .battery-level {
+        height: 100%;
+        width: 0%; /* JS控制 */
+        background: var(--text-sub); /* 默认跟随主题色 */
+        transition: width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.3s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* === ⚡ 充电特效 === */
+      /* 充电时的斜纹动画 */
+      .battery-shell.charging .battery-level {
+        background-image: linear-gradient(
+          45deg,
+          rgba(255, 255, 255, 0.5) 25%,
+          transparent 25%,
+          transparent 50%,
+          rgba(255, 255, 255, 0.5) 50%,
+          rgba(255, 255, 255, 0.5) 75%,
+          transparent 75%,
+          transparent
+        );
+        background-size: 10px 10px;
+        animation: chargeFlow 1s linear infinite;
+        background-color: var(--btn-save-bg) !important; /* 充电时变绿/主题亮色 */
+      }
+
+      /* 充电闪电图标 */
+      .bolt-icon {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 12px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        display: none;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .battery-shell.charging .bolt-icon {
+        display: block;
+        animation: pulseBolt 0.8s infinite alternate;
+      }
+
+      /* === ⚠️ 低电量样式 === */
+      .battery-level.low {
+        background-color: #ff6b6b !important; /* 强制红色 */
+      }
+      .battery-text.low {
+        color: #ff6b6b;
+        animation: blinkText 1s infinite;
+      }
+
+      /* 动画定义 */
+      @keyframes chargeFlow {
+        0% {
+          background-position: 0 0;
+        }
+        100% {
+          background-position: 20px 0;
+        }
+      }
+      @keyframes pulseBolt {
+        0% {
+          transform: translate(-50%, -50%) scale(0.8);
+          opacity: 0.8;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1.2);
+          opacity: 1;
+        }
+      }
+      @keyframes blinkText {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="status-bar">
+      <div class="clock" id="clock" style="font-size: 1.1rem">00:00</div>
+      <div style="font-size: 1.1rem; color: var(--text-sub)">TSUKIMI OS</div>
+      <div style="display: flex; gap: 9px">
+        <div class="theme-toggle" onclick="toggleSettingsModal()">⚙️</div>
+        <div class="theme-toggle" onclick="toggleTheme()">🎨</div>
+
+        <div class="battery-widget">
+          <span class="battery-text" id="bat-text">--%</span>
+          <div class="battery-shell" id="bat-shell">
+            <div class="battery-level" id="bat-level"></div>
+            <div class="bolt-icon">⚡</div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div class="welcome-banner" id="welcome-text">(｡･ω･｡)ﾉ♡ Welcome Back!</div>
+
+      <div class="widget-row">
+        <div class="widget-polaroid" onclick="document.getElementById('cover-upload').click()">
+          <div class="polaroid-tape"></div>
+          <img id="polaroid-img" class="polaroid-img" src="" style="display: none" />
+          <div class="polaroid-placeholder" id="polaroid-ph">
+            <div style="font-size: 2rem">📷</div>
+            <div>TAP TO ADD</div>
+          </div>
+        </div>
+
+        <div class="widget-memo">
+          <div class="memo-header">MEMO PAD</div>
+          <textarea id="memo-text" class="memo-content" placeholder="写点什么吧...(◍′˘‵◍)"></textarea>
+        </div>
+      </div>
+
+      <div class="app-grid">
+        <a href="Roleplay Cards.html" class="app-item">
+          <div class="app-icon">📇</div>
+          <div class="app-name">CARDS</div>
+          <div class="app-desc">角色档案管理</div>
+        </a>
+
+        <a onclick="window.location.href='discover.html'" class="app-item">
+          <div class="app-icon">📡</div>
+          <div class="app-name">Discover</div>
+          <div class="app-desc">Chat</div>
+        </a>
+      </div>
+
+      <div class="footer-sign">
+        © 2025 DESIGN BY 月見tsukimi<br />
+        All Systems Operational.
+      </div>
+    </div>
+
+    <input type="file" id="cover-upload" accept="image/*" onchange="handleCoverUpload(this)" />
+
+    <div id="settings-modal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-title">SYSTEM SETTINGS</div>
+
+        <button class="setting-btn" onclick="exportAllData()"><span>📦</span> 备份全部数据 (ZIP)</button>
+
+        <button class="setting-btn" onclick="document.getElementById('zip-import').click()">
+          <span>📥</span> 恢复数据 (ZIP)
+        </button>
+
+        <button class="setting-btn" style="background: var(--btn-del-bg); color: #fff" onclick="clearAllData()">
+          <span>🗑️</span> 清空全部数据 (Reset)
+        </button>
+
+        <button class="setting-btn" style="margin-top: 10px; background: #eee" onclick="toggleSettingsModal()">
+          <span>✕</span> 关闭
+        </button>
+      </div>
+    </div>
+
+    <input type="file" id="zip-import" accept=".zip" style="display: none" onchange="importAllData(this)" />
+
+    <div id="pixel-modal-generic" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-title" id="gen-modal-title">System Hint</div>
+        <div class="modal-content" id="gen-modal-message"></div>
+        <div class="modal-actions" id="gen-modal-actions"></div>
+      </div>
+    </div>
+    <script>
+      // ================= [新增] 自定义弹窗逻辑 =================
+
+      // 1. 通用弹窗显示核心
+      function showModalCore(message, title, type = 'alert') {
+        return new Promise(resolve => {
+          const modal = document.getElementById('pixel-modal-generic');
+          const titleEl = document.getElementById('gen-modal-title');
+          const msgEl = document.getElementById('gen-modal-message');
+          const actionsEl = document.getElementById('gen-modal-actions');
+
+          titleEl.innerText = title;
+          msgEl.innerText = message; // 支持简单文本，如果需要换行可用 innerHTML
+          actionsEl.innerHTML = ''; // 清空旧按钮
+
+          // 定义关闭函数
+          const close = () => {
+            modal.style.display = 'none';
+          };
+
+          if (type === 'confirm') {
+            // === Confirm 模式 (取消 + 确定) ===
+            const btnCancel = document.createElement('button');
+            btnCancel.className = 'pixel-btn btn-cancel';
+            btnCancel.innerText = '取消 / Cancel';
+            btnCancel.onclick = () => {
+              close();
+              resolve(false);
+            };
+
+            const btnConfirm = document.createElement('button');
+            btnConfirm.className = 'pixel-btn btn-confirm';
+            btnConfirm.innerText = '确定 / Confirm';
+            btnConfirm.onclick = () => {
+              close();
+              resolve(true);
+            };
+
+            actionsEl.appendChild(btnCancel);
+            actionsEl.appendChild(btnConfirm);
+          } else {
+            // === Alert 模式 (仅确定) ===
+            const btnOk = document.createElement('button');
+            btnOk.className = 'pixel-btn btn-confirm';
+            btnOk.innerText = '知道了 / OK';
+            btnOk.onclick = () => {
+              close();
+              resolve(true);
+            };
+
+            actionsEl.appendChild(btnOk);
+          }
+
+          // 显示弹窗 (使用 flex 布局)
+          modal.style.display = 'flex';
+        });
+      }
+
+      // 2. 快捷调用封装
+      async function showPixelAlert(message, title = 'System Hint') {
+        await showModalCore(message, title, 'alert');
+      }
+
+      async function showPixelConfirm(message, title = 'System Warning') {
+        return await showModalCore(message, title, 'confirm');
+      }
+      // ================= 1. 时钟逻辑 =================
+      function updateClock() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('clock').innerText = `${hours}:${minutes}`;
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // ================= 2. 主题切换逻辑 =================
+      // ================= 🎨 全局主题管理 (请复制到所有 4 个文件的 script 中) =================
+
+      // 1. 初始化主题 (打开页面时立即执行)
+      function initTheme() {
+        // 尝试读取本地存储，如果没有则默认为 'pink'
+        const savedTheme = localStorage.getItem('momo_theme') || 'pink';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      }
+
+      // 2. 切换主题 (点击按钮时执行)
+      function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        // 如果是 pink 就切 blue，否则切 pink
+        const next = current === 'pink' ? 'blue' : 'pink';
+
+        // 应用并保存到本地存储
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('momo_theme', next);
+
+        // ★ 特殊处理：如果是主页(index.html)，还需要更新欢迎语
+        if (typeof updateWelcomeText === 'function') {
+          updateWelcomeText(next);
+        }
+      }
+
+      // ★ 3. 立即运行初始化
+      initTheme();
+
+      // ================= 3. 小组件逻辑 =================
+
+      // A. 便签自动保存
+      const memoArea = document.getElementById('memo-text');
+      memoArea.value = localStorage.getItem('momo_home_memo') || '';
+      memoArea.addEventListener('input', () => {
+        localStorage.setItem('momo_home_memo', memoArea.value);
+      });
+
+      // B. 拍立得照片逻辑
+      const imgEl = document.getElementById('polaroid-img');
+      const phEl = document.getElementById('polaroid-ph');
+
+      // 加载保存的照片
+      const savedCover = localStorage.getItem('momo_home_cover');
+      if (savedCover) {
+        imgEl.src = savedCover;
+        imgEl.style.display = 'block';
+        phEl.style.display = 'none';
+      }
+
+      function handleCoverUpload(input) {
+        if (input.files && input.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const base64 = e.target.result;
+            // 压缩/保存图片到 localStorage
+            localStorage.setItem('momo_home_cover', base64);
+            imgEl.src = base64;
+            imgEl.style.display = 'block';
+            phEl.style.display = 'none';
+          };
+          reader.readAsDataURL(input.files[0]);
+        }
+      }
+
+      // C. 随机欢迎语
+      const kaomojis = [
+        '(｡･ω･｡)ﾉ♡ Welcome Back!',
+        '♪(´▽｀) 今天也要开心鸭',
+        '(oﾟvﾟ)ノ 系统运行正常',
+        '★_★ 又是充满希望的一天',
+        '(*/ω＼*) 随时准备待命',
+      ];
+
+      function updateWelcomeText(theme) {
+        const el = document.getElementById('welcome-text');
+        // 随机取一个
+        const text = kaomojis[Math.floor(Math.random() * kaomojis.length)];
+        el.innerText = text;
+      }
+      updateWelcomeText(); // Init
+
+      // ================= 4. 系统设置与备份逻辑 =================
+
+      // 切换弹窗显示
+      function toggleSettingsModal() {
+        const el = document.getElementById('settings-modal');
+        el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
+      }
+
+      // --- 核心：导出全部数据 ---
+      async function exportAllData() {
+        const btn = document.querySelector('.setting-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ 打包中...';
+
+        try {
+          const zip = new JSZip();
+
+          // 1. 备份 LocalStorage (API配置、主页便签、主题等)
+          const lsData = {};
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            lsData[key] = localStorage.getItem(key);
+          }
+          zip.file('local_storage_backup.json', JSON.stringify(lsData, null, 2));
+
+          // 2. 备份 IndexedDB (Chat & Cards 数据)
+          // 连接数据库 (必须与 Chat.html 定义的一致)
+          const dbName = 'PixelChatDB';
+          if (await Dexie.exists(dbName)) {
+            const db = new Dexie(dbName);
+            await db.open();
+
+            const dbFolder = zip.folder('indexed_db');
+
+            // 遍历所有表 (history, images, stickers, characters)
+            for (const table of db.tables) {
+              let rows = await table.toArray();
+
+              // ★ 关键处理：将 Blob 对象转换为 Base64 字符串
+              // 因为 JSON 不支持 Blob，直接存会变成空对象
+              if (table.name === 'images' || table.name === 'stickers') {
+                for (let row of rows) {
+                  if (row.blob && row.blob instanceof Blob) {
+                    row.blob_base64 = await blobToBase64(row.blob);
+                    delete row.blob; // 移除原始 Blob 对象
+                  }
+                }
+              }
+
+              dbFolder.file(`${table.name}.json`, JSON.stringify(rows));
+            }
+          }
+
+          // === 👇 修改这里 👇 ===
+
+          // 3. 生成 ZIP 二进制流
+          const content = await zip.generateAsync({ type: 'blob' });
+          const dateStr = new Date().toISOString().slice(0, 10);
+          const fileName = `TsukimiOS_Backup_${dateStr}.zip`;
+
+          // [修改] 使用 smartSave 替代 saveAs 或 navigator.share
+          // smartSave 会自动判断是 APP 还是 网页
+          smartSave(content, fileName);
+
+          // 注意：smartSave 内部有异步提示，这里不需要再弹 Alert 了
+          // 除非在网页端 smartSave 没弹提示，可以保留下面的
+          // await showPixelAlert(...)
+        } catch (e) {
+          console.error(e);
+          await showPixelAlert('备份失败: ' + e.message, 'System Error');
+        } finally {
+          btn.innerHTML = originalText;
+        }
+      }
+
+      // --- 核心：导入恢复数据 ---
+      async function importAllData(input) {
+        if (!input.files[0]) return;
+        const file = input.files[0];
+
+        // [修改] 替换 confirm 为自定义 showPixelConfirm
+        const isConfirmed = await showPixelConfirm(
+          '⚠️ 警告：导入数据将【覆盖】当前所有聊天记录、角色卡和设置。\n确定要继续吗？',
+          'DANGER ZONE',
+        );
+
+        if (!isConfirmed) {
+          input.value = ''; // 清空选择
+          return;
+        }
+
+        try {
+          const zip = await JSZip.loadAsync(file);
+
+          // 1. 恢复 LocalStorage
+          const lsFile = zip.file('local_storage_backup.json');
+          if (lsFile) {
+            const lsStr = await lsFile.async('string');
+            const lsData = JSON.parse(lsStr);
+            localStorage.clear(); // 清空旧的
+            for (const key in lsData) {
+              localStorage.setItem(key, lsData[key]);
+            }
+          }
+
+          // 2. 恢复 IndexedDB
+          const dbName = 'PixelChatDB';
+          const db = new Dexie(dbName);
+
+          // 声明数据库结构 (必须与 Chat.html 完全一致)
+          db.version(2).stores({
+            history: '++id, charId, role, content, type, timestamp',
+            images: '++id, blob',
+            stickers: '++id, blob, timestamp',
+            characters: 'id, name, avatar, user_avatar',
+          });
+
+          await db.open();
+
+          // 清空现有数据库
+          await db.transaction('rw', db.tables, async () => {
+            for (const table of db.tables) {
+              await table.clear();
+            }
+          });
+
+          // 写入新数据
+          const dbFolder = zip.folder('indexed_db');
+          if (dbFolder) {
+            const files = [];
+            dbFolder.forEach((relativePath, file) => files.push(file));
+
+            for (const jsonFile of files) {
+              const tableName = jsonFile.name.replace('.json', '').split('/').pop();
+              const jsonStr = await jsonFile.async('string');
+              const rows = JSON.parse(jsonStr);
+
+              // ★ 关键处理：将 Base64 转回 Blob
+              if (tableName === 'images' || tableName === 'stickers') {
+                for (let row of rows) {
+                  if (row.blob_base64) {
+                    row.blob = await base64ToBlob(row.blob_base64);
+                    delete row.blob_base64;
+                  }
+                }
+              }
+
+              if (db[tableName]) {
+                await db[tableName].bulkAdd(rows);
+              }
+            }
+          }
+
+          // [修改] 替换 alert
+          await showPixelAlert('🎉 数据恢复成功耶(◍′˘‵◍) 页面即将刷新', 'Restore Complete');
+          location.reload();
+        } catch (e) {
+          console.error(e);
+          // [修改] 替换 alert
+          await showPixelAlert('恢复失败，文件可能已损坏: ' + e.message, 'Restore Failed');
+        }
+        input.value = '';
+      }
+
+      // --- [新增] 清空全部数据 ---
+      async function clearAllData() {
+        // 1. 使用自定义弹窗进行警告
+        const isConfirmed = await showPixelConfirm(
+          '⚠️ 危险操作：\n这将删除所有聊天记录、角色卡、设置和图片哦\n数据一旦清空无法恢复qaq\n\n确定要重置系统吗？',
+          'FACTORY RESET',
+        );
+
+        if (!isConfirmed) return; // 用户点取消则停止
+
+        try {
+          // 2. 清空 LocalStorage (设置、便签、主题等)
+          localStorage.clear();
+
+          // 3. 删除 IndexedDB 数据库 (聊天记录、图片等)
+          const dbName = 'PixelChatDB';
+          // Dexie 提供了直接删除数据库的方法
+          await Dexie.delete(dbName);
+
+          // 4. 提示成功并刷新
+          await showPixelAlert('系统已重置为初始状态 (｡•́︿•̀｡)', 'System Reset');
+          location.reload(); // 刷新页面以重新初始化
+        } catch (e) {
+          console.error(e);
+          await showPixelAlert('重置失败: ' + e.message, 'Error');
+        }
+      }
+
+      // --- 辅助工具：Blob <-> Base64 ---
+      function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function base64ToBlob(base64) {
+        const res = await fetch(base64);
+        return await res.blob();
+      }
+      // ================= [新增] 智能保存逻辑 (适配安卓APP) =================
+
+      /**
+       * 智能保存：自动判断是 网页端下载 还是 手机端写入
+       */
+      function smartSave(blob, filename) {
+        // 检测是否存在 Cordova 文件插件
+        if (window.cordova && cordova.file) {
+          saveToMobile(blob, filename);
+        } else {
+          // 网页端降级处理
+          saveAs(blob, filename);
+          // 如果你有自定义提示 showPixelAlert，可以在这里调用
+          if (typeof showPixelAlert === 'function') {
+            showPixelAlert('文件已推送到浏览器下载 (｡･ω･｡)', 'Download Started');
+          }
+        }
+      }
+
+      /**
+       * 手机端专用：写入到 Download 目录 (分块写入防止崩溃)
+       */
+      function saveToMobile(blob, filename) {
+        // 提示开始
+        if (typeof showPixelAlert === 'function') {
+          showPixelAlert('⏳ 正在保存到手机 Download 目录...\n请稍候，完成后会有提示 (｡･ω･｡)', 'Saving...');
+        }
+
+        // 获取存储路径 (安卓通常是 externalRootDirectory)
+        const storageLocation = cordova.file.externalRootDirectory || cordova.file.externalDataDirectory;
+
+        window.resolveLocalFileSystemURL(
+          storageLocation,
+          function (dirEntry) {
+            // 进入 Download 文件夹
+            dirEntry.getDirectory(
+              'Download',
+              { create: true, exclusive: false },
+              function (downDir) {
+                // 创建/覆盖文件
+                downDir.getFile(
+                  filename,
+                  { create: true, exclusive: false },
+                  function (fileEntry) {
+                    fileEntry.createWriter(function (fileWriter) {
+                      const CHUNK_SIZE = 1024 * 1024; // 每次写入 1MB
+                      let offset = 0;
+
+                      // 1. 定义写入结束的回调
+                      fileWriter.onwriteend = function () {
+                        offset += CHUNK_SIZE;
+                        if (offset < blob.size) {
+                          // 没写完，移动指针继续写下一块
+                          fileWriter.seek(fileWriter.length);
+                          writeNextChunk();
+                        } else {
+                          // 全部写完
+                          if (typeof showPixelAlert === 'function') {
+                            showPixelAlert(
+                              `✅ 保存成功！\n文件已存入：内部存储/Download/${filename}`,
+                              'Export Success',
+                            );
+                          } else {
+                            alert(`✅ 保存成功：Download/${filename}`);
+                          }
+                        }
+                      };
+
+                      // 2. 错误处理
+                      fileWriter.onerror = function (e) {
+                        if (typeof showPixelAlert === 'function') {
+                          showPixelAlert('❌ 写入失败：' + e.toString(), 'Write Error');
+                        }
+                      };
+
+                      // 3. 写入块的函数
+                      function writeNextChunk() {
+                        const slice = blob.slice(offset, offset + CHUNK_SIZE);
+                        fileWriter.write(slice);
+                      }
+
+                      // 4. 启动逻辑：先清空文件，再开始写
+                      // 重写 onwriteend 以便在 truncate 完成后触发第一次写入
+                      fileWriter.onwriteend = function () {
+                        // 恢复正常的循环写入回调
+                        fileWriter.onwriteend = function () {
+                          offset += CHUNK_SIZE;
+                          if (offset < blob.size) {
+                            fileWriter.seek(fileWriter.length);
+                            writeNextChunk();
+                          } else {
+                            if (typeof showPixelAlert === 'function') {
+                              showPixelAlert(
+                                `✅ 保存成功！\n文件已存入：内部存储/Download/${filename}`,
+                                'Export Success',
+                              );
+                            }
+                          }
+                        };
+                        // 开始写第一块
+                        writeNextChunk();
+                      };
+
+                      // 执行清空
+                      fileWriter.truncate(0);
+                    });
+                  },
+                  function (err) {
+                    console.error(err);
+                    if (typeof showPixelAlert === 'function') showPixelAlert('❌ 创建文件失败', 'Error');
+                  },
+                );
+              },
+              function (err) {
+                console.error(err);
+                if (typeof showPixelAlert === 'function') showPixelAlert('❌ 找不到 Download 目录', 'Error');
+              },
+            );
+          },
+          function (err) {
+            console.error(err);
+            if (typeof showPixelAlert === 'function') showPixelAlert('❌ 无法访问存储权限', 'Permission Error');
+          },
+        );
+      }
+      // === 文件夹逻辑 ===
+      function openAppFolder() {
+        document.getElementById('folder-modal').style.display = 'flex';
+      }
+
+      function closeAppFolder(event, force = false) {
+        // 点击遮罩层或关闭按钮时关闭
+        if (force || event.target.id === 'folder-modal') {
+          document.getElementById('folder-modal').style.display = 'none';
+        }
+      }
+      // ================= [新增] 像素电量条逻辑 =================
+      (function initBatteryWidget() {
+        const batText = document.getElementById('bat-text');
+        const batLevel = document.getElementById('bat-level');
+        const batShell = document.getElementById('bat-shell');
+
+        function updateBatteryUI(battery) {
+          const level = Math.round(battery.level * 100);
+          const isCharging = battery.charging;
+
+          // 1. 更新文字
+          batText.innerText = level + '%';
+
+          // 2. 更新长度
+          batLevel.style.width = level + '%';
+
+          // 3. 处理充电状态 (添加动画类)
+          if (isCharging) {
+            batShell.classList.add('charging');
+            batText.classList.remove('low');
+            batLevel.classList.remove('low');
+          } else {
+            batShell.classList.remove('charging');
+
+            // 4. 处理低电量 (红色警报)
+            if (level <= 20) {
+              batLevel.classList.add('low');
+              batText.classList.add('low');
+            } else {
+              batLevel.classList.remove('low');
+              batText.classList.remove('low');
+            }
+          }
+        }
+
+        // 检查浏览器支持
+        if ('getBattery' in navigator) {
+          navigator.getBattery().then(function (battery) {
+            // 初始化
+            updateBatteryUI(battery);
+
+            // 监听变化
+            battery.addEventListener('levelchange', () => updateBatteryUI(battery));
+            battery.addEventListener('chargingchange', () => updateBatteryUI(battery));
+          });
+        } else {
+          // 不支持的情况显示满电假象或隐藏
+          batText.innerText = '100%';
+          batLevel.style.width = '100%';
+        }
+      })();
+    </script>
+  </body>
+</html>
